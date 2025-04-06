@@ -453,12 +453,25 @@ if st.session_state.file_uploaded:
     recipe_df = None
     
     for filename, df in st.session_state.dataframes.items():
-        if 'thai_dishes' in filename:
+        if isinstance(filename, str) and 'thai_dishes' in filename.lower():
             dishes_df = df
-        elif 'ingredients' in filename:
+        elif isinstance(filename, str) and 'ingredients' in filename.lower() and 'recipe' not in filename.lower():
             ingredients_df = df
-        elif 'recipe_ingredients' in filename:
+        elif isinstance(filename, str) and 'recipe' in filename.lower():
             recipe_df = df
+    
+    # เพิ่มการตรวจสอบว่าได้ข้อมูลครบหรือไม่
+    if dishes_df is None or ingredients_df is None or recipe_df is None:
+        st.error("ไม่พบข้อมูลที่จำเป็นครบถ้วน กรุณาตรวจสอบไฟล์ที่อัปโหลด")
+        st.write("สถานะข้อมูล:")
+        st.write(f"- ข้อมูลอาหารไทย (thai_dishes): {'พบแล้ว' if dishes_df is not None else 'ไม่พบ'}")
+        st.write(f"- ข้อมูลวัตถุดิบ (ingredients): {'พบแล้ว' if ingredients_df is not None else 'ไม่พบ'}")
+        st.write(f"- ข้อมูลส่วนผสม (recipe_ingredients): {'พบแล้ว' if recipe_df is not None else 'ไม่พบ'}")
+        
+        # ถ้าไม่ครบให้แสดงรายชื่อไฟล์ที่โหลดแล้ว
+        st.write("ไฟล์ที่โหลดแล้ว:")
+        for filename in st.session_state.dataframes.keys():
+            st.write(f"- {filename}")
     
     # Display chat interface
     st.header("สนทนากับแชทบอทอาหารไทย")
