@@ -185,7 +185,7 @@ with st.sidebar:
     
     if api_key:
         # Initialize Gemini API
-        gemini_model, success = initialize_gemini_api(api_key='AIzaSyCJw_-6i3ffFdsx1FUXda0AIuen22U6BGE')
+        gemini_model, success = initialize_gemini_api(api_key)
         if success:
             st.session_state.gemini_model = gemini_model
             st.session_state.api_key_set = True
