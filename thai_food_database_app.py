@@ -115,7 +115,7 @@ def get_response_for_question(question, dishes_df, ingredients_df, recipe_df):
         if dish_name:
             try:
                 # หา dish_id
-                dish_data = dishes_df[dishes_df['dish_name'].str.contains(dish_name, case=False)]
+                dish_data = dishes_df[dishes_df['dish_name'].str.contains(dish_name, case=False, na=False)]
                 
                 if not dish_data.empty:
                     dish_id = dish_data.iloc[0]['dish_id']
@@ -274,12 +274,35 @@ def get_response_for_question(question, dishes_df, ingredients_df, recipe_df):
 # Helper function to extract dish name from question
 def extract_dish_name(question):
     # แก้ไขการดึงชื่ออาหารจากคำถาม - เพิ่มรูปแบบมากขึ้น
+    original_question = question
     
-    # กรณีที่ 1: คำถามตรงๆ เช่น "แคลอรี่ของต้มยำกุ้ง"
+    # แปลงคำถามให้เป็นตัวพิมพ์เล็กและลบเครื่องหมายคำถาม
+    question = question.lower().replace('?', '').replace('ๆ', '').strip()
+    
+    # กรณีที่ 1: คำถามเกี่ยวกับแคลอรี่
     if "แคลอรี่ของ" in question:
         return question.split("แคลอรี่ของ")[1].strip()
     
-    # กรณีที่ 2: คำถามมีคำว่า "แคลอรี่" และชื่ออาหาร
+    # กรณีที่ 2: คำถามเกี่ยวกับส่วนผสม
+    if "ส่วนผสมของ" in question:
+        parts = question.split("ส่วนผสมของ")[1].strip()
+        # ตัดคำว่า "มีอะไรบ้าง" ออก ถ้ามี
+        if "มีอะไรบ้าง" in parts:
+            parts = parts.split("มีอะไรบ้าง")[0].strip()
+        return parts
+    
+    # กรณีที่ 3: คำถามมีคำว่า "ส่วนผสม" และชื่ออาหาร
+    if "ส่วนผสม" in question and "มีอะไรบ้าง" in question:
+        # ลองตัดส่วนหน้า "ส่วนผสม" และหลัง "มีอะไรบ้าง" ออก
+        parts = question.split("ส่วนผสม")[1].strip()
+        if "มีอะไรบ้าง" in parts:
+            parts = parts.split("มีอะไรบ้าง")[0].strip()
+        # ถ้ามีคำว่า "ของ" ให้ดึงข้อความหลัง "ของ"
+        if "ของ" in parts:
+            return parts.split("ของ")[1].strip()
+        return parts
+    
+    # กรณีที่ 4: คำถามมีคำว่า "แคลอรี่" และชื่ออาหาร
     if "แคลอรี่" in question:
         # ตัดคำว่า "แคลอรี่" ออก และลองหาชื่ออาหาร
         text = question.replace("แคลอรี่", "").strip()
@@ -287,9 +310,18 @@ def extract_dish_name(question):
         if "ของ" in text:
             return text.split("ของ")[1].strip()
     
+    # กรณีที่ 5: คำถามเกี่ยวกับราคา
+    if "ราคาของ" in question:
+        return question.split("ราคาของ")[1].strip()
+    
+    if "ราคา" in question and "เท่าไหร่" in question:
+        text = question.replace("ราคา", "").replace("เท่าไหร่", "").strip()
+        if "ของ" in text:
+            return text.split("ของ")[1].strip()
+    
     # ใช้รูปแบบเดิมเป็น fallback
     patterns = [
-        r'(?:ของ|about|of|for|อาหาร|ชื่อ|เมนู)\s+([^\?\.]+?)(?:\s+and|\s*$|\s+สำหรับ|\s+ราคา|\s+แคลอรี่)',
+        r'(?:ของ|about|of|for|อาหาร|ชื่อ|เมนู)\s+([^\?\.]+?)(?:\s+and|\s*$|\s+สำหรับ|\s+ราคา|\s+แคลอรี่|\s+มีอะไร)',
         r'(?:ทำ)([^\?\.]+?)(?:\s+and|\s*$|\s+สำหรับ|\s+ยังไง|\s+อย่างไร)',
         r'([^\?\.]+?)(?:\s+มี|\s+ประกอบด้วย|\s+ทำยังไง|\s+ราคา|\s+แคลอรี่)'
     ]
@@ -303,6 +335,9 @@ def extract_dish_name(question):
     # เช่น "ต้มยำกุ้ง" โดยตรง
     if len(question.split()) <= 3:  # คำถามสั้นๆ ไม่เกิน 3 คำ
         return question.strip()
+    
+    # แสดงคำถามที่ไม่สามารถดึงชื่ออาหารได้ เพื่อการดีบัก
+    print(f"DEBUG - ไม่สามารถดึงชื่ออาหารจากคำถาม: {original_question}")
     
     # ตรวจสอบในฐานข้อมูลว่ามีอาหารที่ชื่อสอดคล้องกับคำในคำถามหรือไม่
     return None
