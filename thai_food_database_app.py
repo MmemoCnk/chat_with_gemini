@@ -5,12 +5,16 @@ import json
 import re
 from io import StringIO
 import google.generativeai as genai
+import glob
 
 st.set_page_config(
     page_title="Thai Food Chatbot with Gemini",
     page_icon="🍜",
     layout="wide"
 )
+
+# Hard-coded Gemini API key - ให้ใส่ API key ของคุณที่นี่
+GEMINI_API_KEY = "AIzaSyCJw_-6i3ffFdsx1FUXda0AIuen22U6BGE"  # แทนที่ด้วย API key จริง
 
 # Initialize session state for storing dataframes
 if 'dataframes' not in st.session_state:
@@ -39,6 +43,47 @@ def initialize_gemini_api(api_key):
 # Function to determine if file is a data dictionary
 def is_data_dict(filename):
     return 'data_dict' in filename
+
+# Function to load CSV files from directories
+def load_csv_from_directories():
+    loaded_files = 0
+    
+    # ตรวจสอบและโหลดไฟล์จากโฟลเดอร์ data_dict
+    if os.path.exists("csv/data_dict"):
+        csv_files = glob.glob("csv/data_dict/*.csv")
+        for file_path in csv_files:
+            try:
+                filename = os.path.basename(file_path)
+                df = pd.read_csv(file_path, encoding='utf-8', on_bad_lines='skip', low_memory=False)
+                st.session_state.data_dicts[filename] = df
+                loaded_files += 1
+                st.sidebar.success(f"โหลด Data Dictionary สำเร็จ: {filename}")
+            except Exception as e:
+                st.sidebar.error(f"ไม่สามารถโหลดไฟล์ {filename} ได้: {str(e)}")
+    
+    # ตรวจสอบและโหลดไฟล์จากโฟลเดอร์ database
+    if os.path.exists("csv/database"):
+        csv_files = glob.glob("csv/database/*.csv")
+        for file_path in csv_files:
+            try:
+                filename = os.path.basename(file_path)
+                df = pd.read_csv(file_path, encoding='utf-8', on_bad_lines='skip', low_memory=False)
+                
+                # แปลงประเภทข้อมูลหลังจากโหลดไฟล์แล้ว
+                for col in df.columns:
+                    try:
+                        # ลองแปลงเป็นตัวเลข ถ้าแปลงไม่ได้ก็ปล่อยเป็น string
+                        df[col] = pd.to_numeric(df[col], errors='ignore')
+                    except:
+                        pass
+                        
+                st.session_state.dataframes[filename] = df
+                loaded_files += 1
+                st.sidebar.success(f"โหลดฐานข้อมูลสำเร็จ: {filename}")
+            except Exception as e:
+                st.sidebar.error(f"ไม่สามารถโหลดไฟล์ {filename} ได้: {str(e)}")
+    
+    return loaded_files > 0
 
 # สร้างข้อมูลทดสอบ (เพิ่มเติม)
 def create_test_data():
@@ -178,14 +223,14 @@ def get_gemini_response(model, question, dataframes):
 # Main title
 st.title("🍜 Thai Food Chatbot with Gemini")
 
-# Sidebar for API key input and file upload
+# Sidebar for file upload and options
 with st.sidebar:
-    st.header("ตั้งค่า Gemini API")
-    api_key = st.text_input("กรอก Gemini API Key", type="password")
+    st.header("สถานะ Gemini API")
     
-    if api_key:
-        # Initialize Gemini API
-        gemini_model, success = initialize_gemini_api(api_key)
+    # ใช้ Hard-coded API Key แทนการให้ผู้ใช้กรอก
+    if GEMINI_API_KEY != "YOUR_GEMINI_API_KEY_HERE":
+        # Initialize Gemini API with hard-coded key
+        gemini_model, success = initialize_gemini_api(GEMINI_API_KEY)
         if success:
             st.session_state.gemini_model = gemini_model
             st.session_state.api_key_set = True
@@ -193,7 +238,26 @@ with st.sidebar:
         else:
             st.session_state.api_key_set = False
             st.error("ไม่สามารถเชื่อมต่อกับ Gemini API ได้ กรุณาตรวจสอบ API Key")
+    else:
+        st.warning("ยังไม่ได้กำหนด Gemini API Key ในโค้ด กรุณาแก้ไขตัวแปร GEMINI_API_KEY")
     
+    st.header("ข้อมูลฐานข้อมูล")
+    
+    # ตรวจสอบว่ามีไฟล์ใน folder csv/data_dict และ csv/database หรือไม่
+    has_csv_folders = (os.path.exists("csv/data_dict") or os.path.exists("csv/database"))
+    
+    # ถ้ามี folder csv ให้โหลดไฟล์อัตโนมัติ
+    if has_csv_folders:
+        if st.button("โหลดไฟล์จากโฟลเดอร์ csv อัตโนมัติ"):
+            loaded = load_csv_from_directories()
+            if loaded:
+                st.session_state.file_uploaded = True
+            else:
+                st.error("ไม่พบไฟล์ CSV ใน csv/data_dict หรือ csv/database")
+    else:
+        st.info("ไม่พบโฟลเดอร์ csv/data_dict หรือ csv/database กรุณาสร้างโฟลเดอร์และเพิ่มไฟล์ CSV หรือใช้การอัปโหลดไฟล์แทน")
+    
+    # คงฟังก์ชันอัปโหลดไฟล์ไว้เป็นทางเลือก
     st.header("อัปโหลดไฟล์ฐานข้อมูล")
     uploaded_files = st.file_uploader("อัปโหลดไฟล์ CSV", type="csv", accept_multiple_files=True)
     
@@ -321,7 +385,7 @@ if st.session_state.file_uploaded:
     else:
         # ตรวจสอบว่ามี Gemini API key หรือไม่
         if not st.session_state.api_key_set:
-            st.warning("คุณยังไม่ได้กำหนด Gemini API Key กรุณากรอก API Key ในช่องทางด้านซ้าย")
+            st.warning("ยังไม่ได้กำหนด Gemini API Key ที่ถูกต้อง กรุณาตรวจสอบค่า GEMINI_API_KEY ในโค้ด")
         
         # รวบรวม dataframes ที่มีทั้งหมด
         all_dataframes = {
@@ -356,7 +420,7 @@ if st.session_state.file_uploaded:
                     # ใช้ Gemini API
                     response = get_gemini_response(st.session_state.gemini_model, question, all_dataframes)
                 else:
-                    response = "กรุณากำหนด Gemini API Key ในช่องทางด้านซ้ายก่อนถามคำถาม เพื่อให้ระบบสามารถตอบคำถามของคุณได้"
+                    response = "กรุณากำหนด Gemini API Key ที่ถูกต้องในโค้ด (ตัวแปร GEMINI_API_KEY) เพื่อให้ระบบสามารถตอบคำถามของคุณได้"
                 
                 # Add to chat history
                 st.session_state.chat_history.append((question, response))
@@ -379,8 +443,12 @@ if st.session_state.file_uploaded:
             st.success("ดาวน์โหลดประวัติการสนทนาเรียบร้อยแล้ว")
             
 else:
-    st.info("กรุณาอัปโหลดไฟล์ CSV ทั้งหมดก่อนเริ่มสนทนากับแชทบอท หรือเลือกใช้ข้อมูลตัวอย่าง")
-    st.write("ควรอัปโหลดไฟล์ต่อไปนี้:")
+    st.info("กรุณาโหลดข้อมูลจากโฟลเดอร์ csv หรืออัปโหลดไฟล์ CSV หรือเลือกใช้ข้อมูลตัวอย่างก่อนเริ่มสนทนากับแชทบอท")
+    
+    if os.path.exists("csv/data_dict") or os.path.exists("csv/database"):
+        st.write("📂 ตรวจพบโฟลเดอร์ csv/data_dict หรือ csv/database กรุณากดปุ่ม 'โหลดไฟล์จากโฟลเดอร์ csv อัตโนมัติ' ที่เมนูด้านซ้าย")
+    
+    st.write("ควรมีไฟล์ต่อไปนี้:")
     st.write("1. thai_dishes.csv - รายการอาหารไทย")
     st.write("2. ingredients.csv - วัตถุดิบ")
     st.write("3. recipe_ingredients.csv - ความสัมพันธ์ระหว่างอาหารและวัตถุดิบ")
@@ -390,9 +458,9 @@ else:
     st.write("7. recipe_ingredients_data_dict.csv - คำอธิบายโครงสร้างข้อมูลความสัมพันธ์ (ไม่จำเป็นต้องมี)")
     
     st.write("## วิธีใช้งาน")
-    st.write("1. กรอก Gemini API Key (จำเป็นต้องมี)")
-    st.write("2. อัปโหลดไฟล์ CSV ทั้งหมดผ่านช่องทางด้านซ้าย หรือเลือก 'ใช้ข้อมูลตัวอย่าง'")
-    st.write("3. ระบบจะแยกแยะไฟล์อัตโนมัติระหว่างฐานข้อมูลและ Data Dictionary")
+    st.write("1. โหลดข้อมูลจากโฟลเดอร์ csv โดยกดปุ่ม 'โหลดไฟล์จากโฟลเดอร์ csv อัตโนมัติ' (แนะนำ)")
+    st.write("2. หรือใช้การอัปโหลดไฟล์ CSV ผ่านช่องทางด้านซ้าย")
+    st.write("3. หรือเลือก 'ใช้ข้อมูลตัวอย่าง' สำหรับการทดสอบ")
     st.write("4. พิมพ์คำถามเกี่ยวกับอาหารไทยในช่องข้อความและกดปุ่ม 'ถามคำถาม'")
     st.write("5. คุณสามารถถามคำถามได้ทุกรูปแบบที่เกี่ยวข้องกับข้อมูลในฐานข้อมูล")
     
@@ -425,4 +493,4 @@ if __name__ == "__main__":
             for filename in st.session_state.data_dicts.keys():
                 st.sidebar.markdown(f"- {filename}")
     else:
-        st.sidebar.warning("ยังไม่ได้โหลดไฟล์ฐานข้อมูล หรือเลือกข้อมูลตัวอย่าง")
+        st.sidebar.warning("ยังไม่ได้โหลดไฟล์ฐานข้อมูล กรุณาโหลดข้อมูลจากโฟลเดอร์ csv หรืออัปโหลดไฟล์ CSV หรือเลือกข้อมูลตัวอย่าง")
