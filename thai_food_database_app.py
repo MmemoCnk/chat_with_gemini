@@ -13,8 +13,12 @@ st.set_page_config(
     layout="wide"
 )
 
-# Hard-coded Gemini API key - ให้ใส่ API key ของคุณที่นี่
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"  # แทนที่ด้วย API key จริง
+# ใช้ Streamlit secrets เพื่อเก็บ API key
+# ถ้าไม่มี secrets จะใช้ค่าว่างเป็นค่าเริ่มต้น
+if 'gemini' in st.secrets:
+    GEMINI_API_KEY = st.secrets['gemini']['api_key']
+else:
+    GEMINI_API_KEY = ""
 
 # Initialize session state for storing dataframes
 if 'dataframes' not in st.session_state:
@@ -227,19 +231,31 @@ st.title("🍜 Thai Food Chatbot with Gemini")
 with st.sidebar:
     st.header("สถานะ Gemini API")
     
-    # ใช้ Hard-coded API Key แทนการให้ผู้ใช้กรอก
-    if GEMINI_API_KEY != "YOUR_GEMINI_API_KEY_HERE":
-        # Initialize Gemini API with hard-coded key
+    # ใช้ API Key จาก Streamlit secrets
+    if GEMINI_API_KEY:
+        # Initialize Gemini API with secrets key
         gemini_model, success = initialize_gemini_api(GEMINI_API_KEY)
         if success:
             st.session_state.gemini_model = gemini_model
             st.session_state.api_key_set = True
-            st.success("เชื่อมต่อกับ Gemini API สำเร็จ")
+            st.success("เชื่อมต่อกับ Gemini API สำเร็จ (ใช้ API key จาก Streamlit secrets)")
         else:
             st.session_state.api_key_set = False
-            st.error("ไม่สามารถเชื่อมต่อกับ Gemini API ได้ กรุณาตรวจสอบ API Key")
+            st.error("ไม่สามารถเชื่อมต่อกับ Gemini API ได้ กรุณาตรวจสอบ API Key ใน Streamlit secrets")
     else:
-        st.warning("ยังไม่ได้กำหนด Gemini API Key ในโค้ด กรุณาแก้ไขตัวแปร GEMINI_API_KEY")
+        st.warning("ไม่พบ Gemini API Key ใน Streamlit secrets กรุณาตั้งค่า secret 'gemini.api_key'")
+        
+        # ให้ผู้ใช้กรอก API key ในกรณีที่ไม่มีใน secrets
+        manual_api_key = st.text_input("กรอก Gemini API Key แบบชั่วคราว", type="password")
+        if manual_api_key:
+            gemini_model, success = initialize_gemini_api(manual_api_key)
+            if success:
+                st.session_state.gemini_model = gemini_model
+                st.session_state.api_key_set = True
+                st.success("เชื่อมต่อกับ Gemini API สำเร็จ (ใช้ API key ชั่วคราว)")
+            else:
+                st.session_state.api_key_set = False
+                st.error("ไม่สามารถเชื่อมต่อกับ Gemini API ได้ กรุณาตรวจสอบ API Key")
     
     st.header("ข้อมูลฐานข้อมูล")
     
@@ -385,7 +401,7 @@ if st.session_state.file_uploaded:
     else:
         # ตรวจสอบว่ามี Gemini API key หรือไม่
         if not st.session_state.api_key_set:
-            st.warning("ยังไม่ได้กำหนด Gemini API Key ที่ถูกต้อง กรุณาตรวจสอบค่า GEMINI_API_KEY ในโค้ด")
+            st.warning("ยังไม่ได้กำหนด Gemini API Key ที่ถูกต้อง กรุณาตรวจสอบค่า secret หรือกรอก API Key ชั่วคราวในช่องทางด้านซ้าย")
         
         # รวบรวม dataframes ที่มีทั้งหมด
         all_dataframes = {
@@ -420,7 +436,7 @@ if st.session_state.file_uploaded:
                     # ใช้ Gemini API
                     response = get_gemini_response(st.session_state.gemini_model, question, all_dataframes)
                 else:
-                    response = "กรุณากำหนด Gemini API Key ที่ถูกต้องในโค้ด (ตัวแปร GEMINI_API_KEY) เพื่อให้ระบบสามารถตอบคำถามของคุณได้"
+                    response = "กรุณากำหนด Gemini API Key ที่ถูกต้องใน secrets หรือกรอก API Key ชั่วคราวในช่องทางด้านซ้าย เพื่อให้ระบบสามารถตอบคำถามของคุณได้"
                 
                 # Add to chat history
                 st.session_state.chat_history.append((question, response))
