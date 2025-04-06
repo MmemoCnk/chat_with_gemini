@@ -28,20 +28,20 @@ def is_data_dict(filename):
 
 # Function to generate response based on user question
 def get_response_for_question(question, dishes_df, ingredients_df, recipe_df):
+    # ตรวจสอบการดึงชื่ออาหาร และแสดงค่าเพื่อการดีบัก
+    dish_name = extract_dish_name(question)
+    print(f"DEBUG - คำถาม: {question}, ชื่ออาหารที่ดึงได้: {dish_name}")  # บันทึกลง log เพื่อดีบัก
+    
     # สร้างโปรมต์สำหรับ Gemini (โค้ดเบื้องหลังไม่แสดงให้ผู้ใช้เห็น)
     prompt = generate_gemini_prompt(question, dishes_df, ingredients_df, recipe_df)
     
-    # ในสถานการณ์จริง จะต้องส่ง API request ไปยัง Gemini API
-    # แต่ในตัวอย่างนี้จะจำลองการตอบกลับ
-    
     # จำลองการตอบกลับสำหรับคำถามเกี่ยวกับแคลอรี่
     if "calories" in question.lower() or "แคลอรี" in question or "calorie" in question.lower():
-        dish_name = extract_dish_name(question)
         if dish_name:
             # ดึงข้อมูลจาก dataframe
             try:
                 # หา dish_id
-                dish_data = dishes_df[dishes_df['dish_name'].str.contains(dish_name, case=False)]
+                dish_data = dishes_df[dishes_df['dish_name'].str.contains(dish_name, case=False, na=False)]
                 
                 if not dish_data.empty:
                     dish_id = dish_data.iloc[0]['dish_id']
@@ -67,11 +67,11 @@ def get_response_for_question(question, dishes_df, ingredients_df, recipe_df):
                                 amount = float(row['amount'])
                             except:
                                 # กรณีไม่สามารถแปลงเป็นตัวเลขได้ กำหนดค่าโดยประมาณ
-                                if row['amount'] == 'สำหรับทอด':
+                                if str(row['amount']) == 'สำหรับทอด':
                                     amount = 50  # น้ำมันสำหรับทอด ประมาณ 50 กรัม
-                                elif '/' in row['amount']:
+                                elif '/' in str(row['amount']):
                                     # กรณีเป็นเศษส่วน เช่น 1/2
-                                    nums = row['amount'].split('/')
+                                    nums = str(row['amount']).split('/')
                                     amount = float(nums[0]) / float(nums[1])
                                 else:
                                     amount = 10  # ค่าเริ่มต้น
@@ -96,7 +96,7 @@ def get_response_for_question(question, dishes_df, ingredients_df, recipe_df):
 {dish_name_full} มีแคลอรี่ประมาณ {round(total_calories)} แคลอรี่ต่อจาน
 
 แคลอรี่จากวัตถุดิบหลัก:
-- {chr(10).join(ingredient_details[:5])}
+- {chr(10).join(['- ' + item for item in ingredient_details[:5]])}
 
 โปรดทราบว่านี่เป็นการประมาณการเท่านั้น ค่าแคลอรี่ที่แท้จริงอาจแตกต่างกันไปขึ้นอยู่กับขนาดของการเสิร์ฟและวิธีการปรุง
                     """
@@ -273,7 +273,21 @@ def get_response_for_question(question, dishes_df, ingredients_df, recipe_df):
 
 # Helper function to extract dish name from question
 def extract_dish_name(question):
-    # ลองค้นหารูปแบบคำถามหลายๆ แบบ
+    # แก้ไขการดึงชื่ออาหารจากคำถาม - เพิ่มรูปแบบมากขึ้น
+    
+    # กรณีที่ 1: คำถามตรงๆ เช่น "แคลอรี่ของต้มยำกุ้ง"
+    if "แคลอรี่ของ" in question:
+        return question.split("แคลอรี่ของ")[1].strip()
+    
+    # กรณีที่ 2: คำถามมีคำว่า "แคลอรี่" และชื่ออาหาร
+    if "แคลอรี่" in question:
+        # ตัดคำว่า "แคลอรี่" ออก และลองหาชื่ออาหาร
+        text = question.replace("แคลอรี่", "").strip()
+        # ถ้ามีคำว่า "ของ" ให้ดึงข้อความหลัง "ของ"
+        if "ของ" in text:
+            return text.split("ของ")[1].strip()
+    
+    # ใช้รูปแบบเดิมเป็น fallback
     patterns = [
         r'(?:ของ|about|of|for|อาหาร|ชื่อ|เมนู)\s+([^\?\.]+?)(?:\s+and|\s*$|\s+สำหรับ|\s+ราคา|\s+แคลอรี่)',
         r'(?:ทำ)([^\?\.]+?)(?:\s+and|\s*$|\s+สำหรับ|\s+ยังไง|\s+อย่างไร)',
@@ -284,8 +298,13 @@ def extract_dish_name(question):
         match = re.search(pattern, question)
         if match:
             return match.group(1).strip()
+            
+    # กรณีพิเศษ: คำถามสั้นๆ ที่มีชื่ออาหารโดยตรง (ไม่มีคำว่า "ของ", "แคลอรี่" ฯลฯ)
+    # เช่น "ต้มยำกุ้ง" โดยตรง
+    if len(question.split()) <= 3:  # คำถามสั้นๆ ไม่เกิน 3 คำ
+        return question.strip()
     
-    # หากไม่พบจากรูปแบบข้างต้น ให้ใช้วิธีค้นหาในฐานข้อมูล
+    # ตรวจสอบในฐานข้อมูลว่ามีอาหารที่ชื่อสอดคล้องกับคำในคำถามหรือไม่
     return None
 
 # Helper function to provide cooking method hint based on dish type
