@@ -1,0 +1,9 @@
+field_name,data_type,description
+dish_id,string,รหัสเฉพาะของอาหารแต่ละจาน
+dish_name,string,ชื่ออาหาร
+dish_type,string,ประเภทของอาหาร
+region,string,ภูมิภาคที่อาหารนี้เป็นที่นิยม
+spicy_level,integer,ระดับความเผ็ดของอาหาร (0-5)
+cooking_time_minutes,integer,เวลาที่ใช้ในการทำอาหาร (นาที)
+difficulty_level,integer,ระดับความยากในการทำอาหาร (1-5)
+description,string,คำอธิบายสั้นๆ เกี่ยวกับอาหาร
