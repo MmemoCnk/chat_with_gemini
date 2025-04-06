@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # Hard-coded Gemini API key - ให้ใส่ API key ของคุณที่นี่
-GEMINI_API_KEY = "AIzaSyCJw_-6i3ffFdsx1FUXda0AIuen22U6BGE"  # แทนที่ด้วย API key จริง
+GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"  # แทนที่ด้วย API key จริง
 
 # Initialize session state for storing dataframes
 if 'dataframes' not in st.session_state:
