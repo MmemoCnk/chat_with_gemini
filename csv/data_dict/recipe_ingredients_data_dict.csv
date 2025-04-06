@@ -1,0 +1,6 @@
+field_name,data_type,description
+dish_id,string,รหัสอาหาร (อ้างอิงจาก thai_dishes.csv)
+ingredient_id,string,รหัสวัตถุดิบ (อ้างอิงจาก ingredients.csv)
+amount,string,ปริมาณของวัตถุดิบที่ใช้
+unit,string,หน่วยของปริมาณวัตถุดิบ
+notes,string,หมายเหตุเพิ่มเติมเกี่ยวกับวัตถุดิบหรือการเตรียม
