@@ -1,0 +1,9 @@
+field_name,data_type,description
+ingredient_id,string,รหัสเฉพาะของวัตถุดิบ
+ingredient_name,string,ชื่อวัตถุดิบ
+category,string,หมวดหมู่ของวัตถุดิบ
+price_per_unit,numeric,ราคาต่อหน่วย (บาท)
+unit,string,หน่วยที่ใช้วัดปริมาณวัตถุดิบ
+source,string,แหล่งที่มาของวัตถุดิบ
+shelf_life_days,integer,ระยะเวลาในการเก็บรักษา (วัน)
+calories_per_100g,integer,ปริมาณแคลอรี่ต่อ 100 กรัม
