@@ -33,16 +33,60 @@ with st.sidebar:
     if uploaded_files:
         for file in uploaded_files:
             # Check if file is a data dictionary or a database file
-            if is_data_dict(file.name):
-                # Load data dictionary
-                df = pd.read_csv(file)
-                st.session_state.data_dicts[file.name] = df
-                st.success(f"Data Dictionary loaded: {file.name}")
-            else:
-                # Load database file
-                df = pd.read_csv(file)
-                st.session_state.dataframes[file.name] = df
-                st.success(f"Database loaded: {file.name}")
+            try:
+                # ลองอ่านไฟล์ด้วยตัวเลือกที่ยืดหยุ่นมากขึ้น
+                df = pd.read_csv(
+                    file,
+                    encoding='utf-8',  # ระบุการเข้ารหัสเป็น UTF-8
+                    on_bad_lines='skip',  # ข้ามบรรทัดที่มีปัญหา
+                    low_memory=False,  # ป้องกันปัญหา low memory
+                    dtype=str  # อ่านทุกคอลัมน์เป็น string ก่อน
+                )
+                
+                # แปลงประเภทข้อมูลหลังจากโหลดไฟล์แล้ว
+                for col in df.columns:
+                    try:
+                        # ลองแปลงเป็นตัวเลข ถ้าแปลงไม่ได้ก็ปล่อยเป็น string
+                        df[col] = pd.to_numeric(df[col], errors='ignore')
+                    except:
+                        pass
+                
+                if is_data_dict(file.name):
+                    st.session_state.data_dicts[file.name] = df
+                    st.success(f"Data Dictionary loaded: {file.name}")
+                else:
+                    st.session_state.dataframes[file.name] = df
+                    st.success(f"Database loaded: {file.name}")
+                    
+            except Exception as e:
+                st.error(f"Error loading {file.name}: {str(e)}")
+                st.info("Trying alternative loading method...")
+                
+                try:
+                    # ลองอ่านเป็นไฟล์ธรรมดาและแปลงเป็น CSV ด้วยตนเอง
+                    stringio = file.getvalue().decode("utf-8")
+                    lines = stringio.split("\n")
+                    header = lines[0].split(",")
+                    
+                    data = []
+                    for line in lines[1:]:
+                        if line.strip():  # ข้ามบรรทัดว่าง
+                            values = line.split(",")
+                            if len(values) == len(header):
+                                data.append(values)
+                    
+                    df = pd.DataFrame(data, columns=header)
+                    
+                    if is_data_dict(file.name):
+                        st.session_state.data_dicts[file.name] = df
+                        st.success(f"Data Dictionary loaded (alternative method): {file.name}")
+                    else:
+                        st.session_state.dataframes[file.name] = df
+                        st.success(f"Database loaded (alternative method): {file.name}")
+                        
+                except Exception as e2:
+                    st.error(f"Both loading methods failed for {file.name}: {str(e2)}")
+                    st.warning("Please check your CSV file format and try again.")
         
         st.session_state.file_uploaded = True
 
