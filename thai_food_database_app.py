@@ -30,7 +30,7 @@ def initialize_gemini_api(api_key):
         # กำหนดค่า API key
         genai.configure(api_key=api_key)
         # สร้าง model
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash-lite')
         return model, True
     except Exception as e:
         st.error(f"ไม่สามารถเชื่อมต่อกับ Gemini API ได้: {str(e)}")
@@ -185,7 +185,7 @@ with st.sidebar:
     
     if api_key:
         # Initialize Gemini API
-        gemini_model, success = initialize_gemini_api(api_key)
+        gemini_model, success = initialize_gemini_api(api_key='AIzaSyCJw_-6i3ffFdsx1FUXda0AIuen22U6BGE')
         if success:
             st.session_state.gemini_model = gemini_model
             st.session_state.api_key_set = True
