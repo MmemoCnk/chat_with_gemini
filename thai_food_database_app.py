@@ -440,6 +440,8 @@ with st.sidebar:
                         
                 except Exception as e2:
                     st.error(f"ไม่สามารถโหลดไฟล์ {file.name} ได้: {str(e2)}")
+                except Exception as e2:
+                    st.error(f"ไม่สามารถโหลดไฟล์ {file.name} ได้: {str(e2)}")
         
         st.session_state.file_uploaded = True
 
@@ -486,12 +488,12 @@ if st.session_state.file_uploaded:
             st.session_state.chat_history.append((question, response))
             
             # Rerun to update chat display
-            st.experimental_rerun()
+            st.rerun()
     
     # Add option to clear chat history
     if st.button("ล้างประวัติการสนทนา"):
         st.session_state.chat_history = []
-        st.experimental_rerun()
+        st.rerun()
 
     # Add export chat history
     if st.download_button(
